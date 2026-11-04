@@ -1,0 +1,10 @@
+{
+  "name": "sandwicher",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --recursive --parallel --filter './apps/*' dev",
+    "build": "pnpm --recursive --filter './packages/*' build && pnpm --recursive --filter './apps/*' build",
+    "lint": "pnpm -r --if-present lint"
+  }
+}
