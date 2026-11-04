@@ -1,9 +1,131 @@
-<!-- BEGIN:nextjs-agent-rules -->
+## 1. 설명하는 방식 - 쉬운 말로, 필요하면 그림으로
 
-## This is NOT the Next.js you know
+### 어려운 말을 쓰지 않는다
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+같은 뜻을 쉬운 말로 쓸 수 있으면 쉬운 쪽을 쓴다.
 
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+| ✗ 이렇게 말고 | ✓ 이렇게 |
+| :--- | :--- |
+| 이 값은 불변식이다 | 이 값은 항상 참이어야 한다 |
+| 계약을 위반한다 | 약속한 대로 동작하지 않는다 |
+| 두 경로가 divergence를 일으킨다 | 두 곳이 서로 다른 답을 낸다 |
+| seam을 열어 둔다 | 나중에 갈아 끼울 수 있게 해 둔다 |
+| harness가 죽어 있다 | 검사가 실제로는 아무것도 안 보고 있다 |
 
-<!-- END:nextjs-agent-rules -->
+### 나만 아는 말을 쓰지 않는다
+
+읽는 사람이 모르는 걸 안다고 치고 말하지 않는다. 특히:
+
+- **문서 번호만 던지기** - "계보 §39를 봐라"로 끝내지 않는다. **무엇에 대한 이야기인지**를
+  먼저 말하고 번호는 붙이지 않는다.
+  - ✗ `§39.3에 따라 처리한다`
+  - ✓ `설치 버튼은 실패해도 아무 값을 안 돌려준다. 그래서 "값이 왔는가"가 아니라 "앱이 아직 살아 있는가"로 판정한다`
+- **줄임말** - 마음대로 축약하지 않는다.
+
+### 긴 대시를 쓰지 않는다
+
+문서와 답변에서 긴 대시(`—`)를 쓰지 않는다. 이어 붙일 때는 하이픈(`-`)만 쓴다.
+
+### 필요하면 그림이나 표를 그린다
+
+글로 세 번 읽어야 하는 걸 그림으로 한 번에 보여줄 수 있으면 그린다.
+
+| 이럴 때 | 이렇게 |
+| :--- | :--- |
+| 순서가 있는 흐름 | 화살표 그림 |
+| 무엇이 무엇을 부르는지 | 층 그림 |
+| 고치기 전 / 고친 후 | 좌우 비교 |
+| 여러 항목의 같고 다름 | 표 |
+
+억지로 그리지는 않는다. 한 문장으로 끝나는 얘기에 그림을 붙이면 오히려 더 읽기 어렵다.
+
+---
+## 2. 코드 모양 - 짧고 얕게
+
+### 함수는 15줄 안에
+
+한 함수가 15줄을 넘어가면 **한 가지 일만 하고 있지 않다는 뜻**이다. 자르면 각 조각에
+이름이 붙고, 이름이 붙으면 읽는 사람이 본문을 안 읽어도 뭘 하는지 안다.
+
+- 세는 기준은 **함수 몸통의 실제 코드 줄**이다. 주석과 빈 줄은 세지 않는다.
+- 15는 벽이 아니라 신호등이다. 넘으면 "왜 넘는지" 한 번 생각하고, 이유가 있으면 넘긴다.
+  (예: 화면을 그리는 JSX는 배치가 길어질 수 있다 - 배치가 길어서 긴 것은 괜찮다.)
+
+### 중첩은 3단계까지
+
+함수 안에서 `{` 로 들어가는 단계가 3을 넘지 않게 한다.
+
+```ts
+function f() {          // 0단계
+  if (a) {              // 1단계
+    for (…) {           // 2단계
+      if (b) {          // 3단계  ← 여기까지
+        while (…) {     // 4단계  ← 너무 깊다
+```
+
+깊어지는 이유는 대부분 **"아닌 경우"를 안쪽에 쌓아 두기 때문**이다. 먼저 걸러 내고 빠져
+나오면 얕아진다.
+
+```ts
+// ✗ 깊다 - 조건이 중첩된다
+function save(user) {
+  if (user !== null) {
+    if (user.name !== "") {
+      if (user.age > 0) {
+        db.write(user);
+      }
+    }
+  }
+}
+
+// ✓ 얕다 - 아닌 경우를 먼저 돌려보낸다
+function save(user) {
+  if (user === null) return;
+  if (user.name === "") return;
+  if (user.age <= 0) return;
+
+  db.write(user);
+}
+```
+
+### 주석은 한 줄, 기능만
+
+주석은 **이게 뭐 하는 건지** 한 줄로 쓴다. JSDoc 형식을 쓴다.
+
+```ts
+/** 출력 대상(primaryShot)을 한 번 조회한다. */
+async function readPrintTarget(): Promise<PrimaryShot | null> { … }
+
+/** pathname → step. 어느 route에도 안 맞으면 null. */
+export function matchKioskPath(pathname: string): KioskStep | null { … }
+```
+
+여러 줄이 필요하다고 느끼면 대개 **함수가 너무 많은 일을 하고 있다는 신호**다. 함수를
+쪼개면 각 조각의 이름과 한 줄 설명으로 충분해진다.
+
+### 히스토리를 주석에 남기지 않는다
+
+**언제 무엇을 왜 바꿨는지는 주석의 일이 아니다.** git이 그것을 기록하고, 판단의 근거는
+계보 문서가 갖는다.
+
+```ts
+// ✗ 이런 것을 남기지 않는다
+// 한때 이 config가 routeFlow에서 visibleStepFlow를 유도했지만, 그것은 "flow route
+// 순서 == 화면 STEP 순서"를 전제해서 T9에서 깨졌다. 2026-08-26에 정정했다.
+// 자세한 건 계보 §30.4 참조.
+
+// ✓ 지금 무엇인지만
+/** 화면 STEP 표시는 flow가 소유하지 않는다 - 표시 계층이 따로 선언한다. */
+visibleStepFlow: [],
+```
+
+남기고 싶은 판단 근거가 있으면 **커밋 메시지**에 쓰거나, 팀이 볼 것이면 계보 문서에 쓴다.
+
+예외는 **함정**이다. 그대로 두면 다음 사람이 같은 곳에서 넘어질 코드에는 경고를 남긴다.
+그때도 "왜 이렇게 됐는지"가 아니라 **"이렇게 하면 안 된다"**를 쓴다.
+
+```ts
+/** ⚠ 이 함수는 늘 거절한다. try/catch로는 안 잡히므로 .catch로 받는다. */
+```
+---
+
